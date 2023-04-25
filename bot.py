@@ -75,7 +75,7 @@ headers = {
 
 home_items = "https://play.radiojavan.com/api/p/home_items"
 playlist_items = "https://play.radiojavan.com/api/p/mp3_playlist_with_items?id="
-
+mp3_api = "https://play.radiojavan.com/api/p/mp3?id="
 
 def download(url, filename):
     filename_parts = filename.split(".")
@@ -83,7 +83,6 @@ def download(url, filename):
     if not os.path.exists(filename):
         response = requests.get(
             url,
-            proxies=proxy,
             headers=headers,
             stream=True,
         )
@@ -109,7 +108,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @send_typing_action
 async def playlists(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    response = requests.get(home_items, proxies=proxy, headers=headers)
+    response = requests.get(home_items, headers=headers)
     if response.status_code == 200:
         json_data = response.json()
 
@@ -120,11 +119,65 @@ async def playlists(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     print(
                         f"{idx + 1} - {item['title']} ({item['items_count']} items)")
                 button_list = [InlineKeyboardButton(
-                    playlist["title"]+" - musics: "+playlist["items_count"], callback_data=playlist["id"]) for playlist in items]
+                    f"{playlist['title']} ({playlist['items_count']} songs)", callback_data=f"playlist;{playlist['id']}") for playlist in items]
                 reply_markup = InlineKeyboardMarkup(
                     build_menu(button_list, n_cols=1))
-                await context.bot.send_message(chat_id=update.effective_chat.id, text="Trends ...", reply_markup=reply_markup)
+                await context.bot.send_message(chat_id=update.effective_chat.id, text="Top playlists ...", reply_markup=reply_markup)
     # ch = int(input("Choose one playlist: "))
+
+
+async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+
+    chat_user = update.effective_user
+    chat = update.effective_chat
+
+    input_text = query.data
+    input_text_parts = input_text.split(";")
+
+    command = input_text_parts[0]
+    if command == "playlist":
+        playlist_id = input_text_parts[1]
+        mp3s_list = requests.get(
+            playlist_items + playlist_id, headers=headers
+        ).json()
+
+        playlist_songs = mp3s_list["items"]
+        print(playlist_songs)
+        button_list = [InlineKeyboardButton(
+                    f"{song['song']} (by {song['artist']})", callback_data=f"song;{song['id']}") for song in playlist_songs]
+        reply_markup = InlineKeyboardMarkup(
+                    build_menu(button_list, n_cols=1))
+
+        await query.edit_message_text(text="Choose your song ...", reply_markup=reply_markup)
+
+    if command == "song":
+        song_id = input_text_parts[1]
+        print(song_id)
+        mp3_item = requests.get(
+            mp3_api + song_id, headers=headers
+        ).json()
+
+        url = mp3_item["link"]
+        filename = "mp3s/" + mp3_item["permlink"] + ".mp3"
+        thumbnail_filename = "thumbnails/" + mp3_item["permlink"] + ".jpg"
+        thumbnail_url = mp3_item["photo"]
+        download(url, filename)
+        download(thumbnail_url, thumbnail_filename)
+
+        with open(filename, "rb") as f:
+            thumbnail_file = open(thumbnail_filename, "rb")
+            text =  f"{mp3_item['song']} (by {mp3_item['artist']})"
+            # emotion buttons
+            buttons = [InlineKeyboardButton("👍", callback_data="like"),
+                    InlineKeyboardButton("👎", callback_data="dislike")]
+
+            reply_markup = InlineKeyboardMarkup(build_menu(buttons, n_cols=2))
+            await query.edit_message_text(text=f"Enjoy listening to {text}")
+            await context.bot.send_audio(chat_id=update.effective_chat.id, audio=f, caption=text, performer=mp3_item['artist'], title=mp3_item['song'], thumbnail=thumbnail_file, reply_markup=reply_markup)
+        
+        await query.answer()
+        
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -141,7 +194,7 @@ if __name__ == '__main__':
     application.add_handler(start_handler)
     application.add_handler(playlists_handler)
 
-    # application.add_handler(CallbackQueryHandler(net_selection_handler))
+    application.add_handler(CallbackQueryHandler(handle_query))
 
     # application.add_handler(message_handler)
 
