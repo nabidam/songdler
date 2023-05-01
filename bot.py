@@ -210,11 +210,19 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             video_api + video_id, headers=headers
         ).json()
 
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Downloading video on the server ... 👨🏻‍💻")
         url = video_item["link"]
         filename = "videos/" + video_item["permlink"] + ".mp4"
+        thumbnail_filename = "thumbnails/" + video_item["permlink"] + ".jpg"
+        thumbnail_url = video_item["photo"]
         download(url, filename)
+        download(thumbnail_url, thumbnail_filename)
 
-        # lower size
+        text = """Compressing video ... 👨🏻‍💻😮‍💨
+This may take a long time, be patient 😇"""
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
+        filename_lq = "videos/" + video_item["permlink"] + "_lq.mp4"
+
         # Load the video file
         video = mp.VideoFileClip(filename)
 
@@ -227,22 +235,26 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # Calculate the new bitrate required to achieve the target size
         # new_bitrate = current_bitrate * target_size / video.size
 
-        # Set the new bitrate and resize the video
-        processed_video = video.resize(height=360)
+        duration = video.duration
 
-        # Write the processed video to a new file
-        filename_lq = "videos/" + video_item["permlink"] + "_lq.mp4"
-        processed_video.write_videofile(filename_lq, codec="libx264")
+        # lower size
+        if not os.path.exists(filename_lq):
+            # Set the new bitrate and resize the video
+            processed_video = video.resize(height=360)
+
+            # Write the processed video to a new file
+            processed_video.write_videofile(filename_lq, codec="libx264")
 
         with open(filename_lq, "rb") as f:
-            text = f"{video_item['song']} (by {video_item['artist']})"
+            thumbnail_file = open(thumbnail_filename, "rb")
+            text = f"Finally your video is here: {video_item['song']} (by {video_item['artist']}) 😍"
             # emotion buttons
             buttons = [InlineKeyboardButton("👍", callback_data="like"),
                        InlineKeyboardButton("👎", callback_data="dislike")]
 
             reply_markup = InlineKeyboardMarkup(build_menu(buttons, n_cols=2))
-            await query.edit_message_reply_markup(None)
-            await context.bot.send_video(chat_id=update.effective_chat.id, video=f, caption=text, reply_markup=reply_markup, supports_streaming=True)
+            # await query.edit_message_reply_markup(None)
+            await context.bot.send_video(chat_id=update.effective_chat.id, video=f, duration=duration, thumbnail=thumbnail_file, caption=text, reply_markup=reply_markup, supports_streaming=True)
 
     if command == "album":
         album_id = input_text_parts[1]
