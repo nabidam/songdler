@@ -82,6 +82,7 @@ artist_api = "https://play.radiojavan.com/api/p/artist?v=2&query="
 video_api = "https://play.radiojavan.com/api/p/video?id="
 album_api = "https://play.radiojavan.com/api/p/mp3?album=1&id="
 
+
 def download(url, filename):
     filename_parts = filename.split(".")
     print(f"[INFO] Downloading {filename_parts[0]} ...")
@@ -121,7 +122,8 @@ async def playlists(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if "id" in section and section["id"] == "playlists":
                 items = section["items"]
                 for idx, item in enumerate(items):
-                    button_list = [InlineKeyboardButton(f"{playlist['title']} ({playlist['items_count']} songs)", callback_data=f"playlist;{playlist['id']}") for playlist in items]
+                    button_list = [InlineKeyboardButton(
+                        f"{playlist['title']} ({playlist['items_count']} songs)", callback_data=f"playlist;{playlist['id']}") for playlist in items]
                 reply_markup = InlineKeyboardMarkup(
                     build_menu(button_list, n_cols=1))
                 await context.bot.send_message(chat_id=update.effective_chat.id, text="Top playlists ...", reply_markup=reply_markup)
@@ -151,27 +153,39 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             ).json()[search_key]
         else:
             search_key = input_text_parts[2]
-            search_res = requests.get(search_api + search_query, headers=headers).json()[search_key]
-        
+            search_res = requests.get(
+                search_api + search_query, headers=headers).json()[search_key]
+
         if search_key == 'artists':
-            button_list = [InlineKeyboardButton(f"{item['name']} ({item['type']})", callback_data=f"{item['type']};{item['query']}") for item in search_res]
-            reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
-            await query.edit_message_text(text="artists ...", reply_markup=reply_markup)
+            for item in search_res:
+                button_list = [InlineKeyboardButton(
+                    f"{item['name']} ({item['type']})", callback_data=f"{item['type']};{item['query']}")]
+                reply_markup = InlineKeyboardMarkup(
+                    build_menu(button_list, n_cols=1))
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=item["photo"], reply_markup=reply_markup)
+            # await query.edit_message_reply_markup(reply_markup=reply_markup)
 
         if search_key == 'videos' or search_key == 'mp3s':
-            button_list = [InlineKeyboardButton(f"{item['title']} ({item['type']})", callback_data=f"{item['type']};{item['id']}") for item in search_res]
-            reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
-            await query.edit_message_text(text="results ...", reply_markup=reply_markup)
+            button_list = [InlineKeyboardButton(
+                f"{item['title']} ({item['type']})", callback_data=f"{item['type']};{item['id']}") for item in search_res]
+            reply_markup = InlineKeyboardMarkup(
+                build_menu(button_list, n_cols=1))
+            await query.edit_message_reply_markup(reply_markup=reply_markup)
 
         if search_key == 'albums':
-            button_list = [InlineKeyboardButton(f"{item['album']['artist']} - {item['album']['album']} (album)", callback_data=f"album;{item['album']['id']}") for item in search_res]
-            reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
-            await query.edit_message_text(text="albums ...", reply_markup=reply_markup)
+            for item in search_res:
+                button_list = [InlineKeyboardButton(f"{item['album']['artist']} - {item['album']['album']} (album)",
+                                                    callback_data=f"album;{item['album']['id']}")]
+                reply_markup = InlineKeyboardMarkup(
+                    build_menu(button_list, n_cols=1))
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=item["photo"], reply_markup=reply_markup)
 
         if search_key == 'playlists':
-            button_list = [InlineKeyboardButton(f"{item['playlist']['title']} ({item['playlist']['type']} - {item['playlist']['created_by']})", callback_data=f"{item['type']};{item['playlist']['id']}") for item in search_res]
-            reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
-            await query.edit_message_text(text="playlists ...", reply_markup=reply_markup)
+            button_list = [InlineKeyboardButton(f"{item['playlist']['title']} ({item['playlist']['type']} - {item['playlist']['created_by']})",
+                                                callback_data=f"{item['type']};{item['playlist']['id']}") for item in search_res]
+            reply_markup = InlineKeyboardMarkup(
+                build_menu(button_list, n_cols=1))
+            await query.edit_message_reply_markup(reply_markup=reply_markup)
 
     if command == "artist":
         artist_query = input_text_parts[1]
@@ -183,16 +197,17 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         button_list = []
         for key in needed_keys:
             if len(artist_items[key]) > 0:
-                button_list.append(InlineKeyboardButton(f"{key} ({len(artist_items[key])} items)", callback_data=f"search;_direct_;{artist_query};{key}"))
+                button_list.append(InlineKeyboardButton(
+                    f"{key} ({len(artist_items[key])} items)", callback_data=f"search;_direct_;{artist_query};{key}"))
         reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
-        await query.edit_message_text(text=f"{artist_items['artist']}", reply_markup=reply_markup) 
+        await query.edit_message_reply_markup(reply_markup=reply_markup)
 
     if command == "video":
         video_id = input_text_parts[1]
         video_item = requests.get(
             video_api + video_id, headers=headers
         ).json()
-        
+
         url = video_item["link"]
         filename = "videos/" + video_item["permlink"] + ".mp4"
         download(url, filename)
@@ -218,13 +233,13 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         processed_video.write_videofile(filename_lq, codec="libx264")
 
         with open(filename_lq, "rb") as f:
-            text =  f"{video_item['song']} (by {video_item['artist']})"
+            text = f"{video_item['song']} (by {video_item['artist']})"
             # emotion buttons
             buttons = [InlineKeyboardButton("👍", callback_data="like"),
-                    InlineKeyboardButton("👎", callback_data="dislike")]
+                       InlineKeyboardButton("👎", callback_data="dislike")]
 
             reply_markup = InlineKeyboardMarkup(build_menu(buttons, n_cols=2))
-            await query.edit_message_text(text=f"Enjoy listening to {text}")
+            await query.edit_message_reply_markup(None)
             await context.bot.send_video(chat_id=update.effective_chat.id, video=f, caption=text, reply_markup=reply_markup, supports_streaming=True)
 
     if command == "album":
@@ -234,11 +249,11 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         ).json()
 
         button_list = [InlineKeyboardButton(
-                    f"{song['song']} (by {song['artist']})", callback_data=f"mp3;{song['id']}") for song in album_items["album_tracks"]]
+            f"{song['song']} (by {song['artist']})", callback_data=f"mp3;{song['id']}") for song in album_items["album_tracks"]]
         reply_markup = InlineKeyboardMarkup(
-                    build_menu(button_list, n_cols=1))
+            build_menu(button_list, n_cols=1))
 
-        await query.edit_message_text(text="Choose your song ...", reply_markup=reply_markup)
+        await query.edit_message_reply_markup(reply_markup=reply_markup)
 
     if command == "playlist":
         playlist_id = input_text_parts[1]
@@ -249,11 +264,11 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         playlist_songs = mp3s_list["items"]
         # print(playlist_songs)
         button_list = [InlineKeyboardButton(
-                    f"{song['song']} (by {song['artist']})", callback_data=f"mp3;{song['id']}") for song in playlist_songs]
+            f"{song['song']} (by {song['artist']})", callback_data=f"mp3;{song['id']}") for song in playlist_songs]
         reply_markup = InlineKeyboardMarkup(
-                    build_menu(button_list, n_cols=1))
+            build_menu(button_list, n_cols=1))
 
-        await query.edit_message_text(text="Choose your song ...", reply_markup=reply_markup)
+        await query.edit_message_reply_markup(reply_markup=reply_markup)
 
     if command == "mp3":
         song_id = input_text_parts[1]
@@ -271,54 +286,57 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
         with open(filename, "rb") as f:
             thumbnail_file = open(thumbnail_filename, "rb")
-            text =  f"{mp3_item['song']} (by {mp3_item['artist']})"
+            text = f"{mp3_item['song']} (by {mp3_item['artist']})"
             # emotion buttons
             buttons = [InlineKeyboardButton("👍", callback_data="like"),
-                    InlineKeyboardButton("👎", callback_data="dislike")]
+                       InlineKeyboardButton("👎", callback_data="dislike")]
 
             reply_markup = InlineKeyboardMarkup(build_menu(buttons, n_cols=2))
-            await query.edit_message_text(text=f"Enjoy listening to {text}")
+            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=mp3_item["photo"])
+            # await query.edit_message_reply_markup(None)
             await context.bot.send_audio(chat_id=update.effective_chat.id, audio=f, caption=text, performer=mp3_item['artist'], title=mp3_item['song'], thumbnail=thumbnail_file, reply_markup=reply_markup)
-        
+
     await query.answer()
-        
 
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Display a help message"""
     await update.message.reply_text("Use /trends to test this bot.")
 
+
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text
     print(f"[INFO] search {query=}")
     search_res = requests.get(search_api + query, headers=headers).json()
     button_list = []
-    not_needed_keys = ["top", "all_artists", "profiles", "query", "shows", "lyrics"]
+    not_needed_keys = ["top", "all_artists",
+                       "profiles", "query", "shows", "lyrics"]
     for key in search_res:
         if key not in not_needed_keys and len(search_res[key]) > 0:
-            button_list.append(InlineKeyboardButton(f"{key} ({len(search_res[key])} items)", callback_data=f"search;{query};{key}"))
+            button_list.append(InlineKeyboardButton(
+                f"{key} ({len(search_res[key])} items)", callback_data=f"search;{query};{key}"))
     reply_markup = InlineKeyboardMarkup(build_menu(button_list, n_cols=1))
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="results ...", reply_markup=reply_markup) 
-        # if key == "artists":
-        #     button_list = [InlineKeyboardButton(
-        #             f"{artist['name']} (artist)", callback_data=f"artist;{artist['id']}") for artist in search_res[key]]
-        #     reply_markup = InlineKeyboardMarkup(
-        #                 build_menu(button_list, n_cols=1))
-        #     await context.bot.send_message(chat_id=update.effective_chat.id, text="results ...", reply_markup=reply_markup)
-        # elif key == "mp3s":
-        #     button_list = [InlineKeyboardButton(
-        #             f"{mp3['title']} (song)", callback_data=f"mp3;{mp3['id']}") for mp3 in search_res[key]]
-        #     reply_markup = InlineKeyboardMarkup(
-        #                 build_menu(button_list, n_cols=1))
-        #     await context.bot.send_message(chat_id=update.effective_chat.id, text="results ...", reply_markup=reply_markup)
-        # elif key == "albums":
-        #     button_list = [InlineKeyboardButton(
-        #             f"{album['title']} (album)", callback_data=f"album;{album['id']}") for album in search_res[key]]
-        #     reply_markup = InlineKeyboardMarkup(
-        #                 build_menu(button_list, n_cols=1))
-        #     await context.bot.send_message(chat_id=update.effective_chat.id, text="results ...", reply_markup=reply_markup)    
-            # for artist in search_res[key]:
-                
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="results ...", reply_markup=reply_markup)
+    # if key == "artists":
+    #     button_list = [InlineKeyboardButton(
+    #             f"{artist['name']} (artist)", callback_data=f"artist;{artist['id']}") for artist in search_res[key]]
+    #     reply_markup = InlineKeyboardMarkup(
+    #                 build_menu(button_list, n_cols=1))
+    #     await context.bot.send_message(chat_id=update.effective_chat.id, text="results ...", reply_markup=reply_markup)
+    # elif key == "mp3s":
+    #     button_list = [InlineKeyboardButton(
+    #             f"{mp3['title']} (song)", callback_data=f"mp3;{mp3['id']}") for mp3 in search_res[key]]
+    #     reply_markup = InlineKeyboardMarkup(
+    #                 build_menu(button_list, n_cols=1))
+    #     await context.bot.send_message(chat_id=update.effective_chat.id, text="results ...", reply_markup=reply_markup)
+    # elif key == "albums":
+    #     button_list = [InlineKeyboardButton(
+    #             f"{album['title']} (album)", callback_data=f"album;{album['id']}") for album in search_res[key]]
+    #     reply_markup = InlineKeyboardMarkup(
+    #                 build_menu(button_list, n_cols=1))
+    #     await context.bot.send_message(chat_id=update.effective_chat.id, text="results ...", reply_markup=reply_markup)
+    # for artist in search_res[key]:
+
     # await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
 if __name__ == '__main__':
