@@ -181,11 +181,12 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 await context.bot.send_photo(chat_id=update.effective_chat.id, photo=item["photo"], reply_markup=reply_markup)
 
         if search_key == 'playlists':
-            button_list = [InlineKeyboardButton(f"{item['playlist']['title']} ({item['playlist']['type']} - {item['playlist']['created_by']})",
-                                                callback_data=f"{item['type']};{item['playlist']['id']}") for item in search_res]
-            reply_markup = InlineKeyboardMarkup(
-                build_menu(button_list, n_cols=1))
-            await query.edit_message_reply_markup(reply_markup=reply_markup)
+            for item in search_res:
+                button_list = [InlineKeyboardButton(f"{item['playlist']['title']} ({item['playlist']['type']} - {item['playlist']['created_by']})",
+                                                    callback_data=f"{item['type']};{item['playlist']['id']}")]
+                reply_markup = InlineKeyboardMarkup(
+                    build_menu(button_list, n_cols=1))
+                await context.bot.send_photo(chat_id=update.effective_chat.id, photo=item['playlist']["photo"], reply_markup=reply_markup)
 
     if command == "artist":
         artist_query = input_text_parts[1]
