@@ -9,6 +9,7 @@ import random
 from typing import Union, List
 import requests
 import moviepy.editor as mp
+from pydub import AudioSegment
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -285,8 +286,26 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         download(url, filename)
         download(thumbnail_url, thumbnail_filename)
 
+        # Load the MP3 file
+        audio = AudioSegment.from_file(filename, format="mp3")
+
+        # Get the length of the audio file in milliseconds
+        length = len(audio)
+
+        # Set the start and end points for trimming
+        start = length / 2 - 10000  # starting 10 seconds before the midpoint
+        end = length / 2 + 10000   # ending 10 seconds after the midpoint
+
+        # Trim the audio file
+        trimmed_audio = audio[start:end]
+
+        # Export the trimmed audio file as an MP3
+        trimmed_filename = "mp3s/" + mp3_item["permlink"] + "_tr.ogg"
+        trimmed_audio.export(trimmed_filename, format="ogg")
+
         with open(filename, "rb") as f:
             thumbnail_file = open(thumbnail_filename, "rb")
+            trimmed_file = open(trimmed_filename, "rb")
             text = f"{mp3_item['song']} (by {mp3_item['artist']})"
             # emotion buttons
             buttons = [InlineKeyboardButton("👍", callback_data="like"),
@@ -295,6 +314,7 @@ async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             reply_markup = InlineKeyboardMarkup(build_menu(buttons, n_cols=2))
             await context.bot.send_photo(chat_id=update.effective_chat.id, photo=mp3_item["photo"])
             # await query.edit_message_reply_markup(None)
+            await context.bot.send_voice(chat_id=update.effective_chat.id, voice=trimmed_file, duration=20)
             await context.bot.send_audio(chat_id=update.effective_chat.id, audio=f, caption=text, performer=mp3_item['artist'], title=mp3_item['song'], thumbnail=thumbnail_file, reply_markup=reply_markup)
 
     await query.answer()
