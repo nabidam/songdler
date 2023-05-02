@@ -10,7 +10,7 @@ from typing import Union, List
 import requests
 import moviepy.editor as mp
 from pydub import AudioSegment
-from yt_dlp import YoutubeDL
+from yt_dlp import YoutubeDL, utils
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -134,11 +134,12 @@ async def download_with_ydl(url, update, context):
                         item.get("title") + ".jpg"
                     thumbnail_url = item.get("thumbnail")
                     download(thumbnail_url, thumbnail_filename)
-                    with open(filename, "rb") as f:
-                        thumbnail_file = open(thumbnail_filename, "rb")
-                        text = "Here is your mp3 😌🎧"
-                        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=thumbnail_file)
-                        await context.bot.send_audio(chat_id=update.effective_chat.id, audio=f, caption=text, performer=item.get("uploader"), title=item.get("title"), thumbnail=thumbnail_file, reply_markup=reply_markup)
+                    if os.path.exists(filename) and os.path.exists(thumbnail_filename):
+                        with open(filename, "rb") as f:
+                            thumbnail_file = open(thumbnail_filename, "rb")
+                            text = "Here is your mp3 😌🎧"
+                            await context.bot.send_photo(chat_id=update.effective_chat.id, photo=thumbnail_file)
+                            await context.bot.send_audio(chat_id=update.effective_chat.id, audio=f, caption=text, performer=item.get("uploader"), title=item.get("title"), thumbnail=thumbnail_file, reply_markup=reply_markup)
             else:
                 buttons = [InlineKeyboardButton("👍", callback_data="like"),
                            InlineKeyboardButton("👎", callback_data="dislike")]
