@@ -10,6 +10,7 @@ from typing import Union, List
 import requests
 import moviepy.editor as mp
 from pydub import AudioSegment
+from yt_dlp import YoutubeDL
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -102,6 +103,63 @@ def download(url, filename):
             print(f"Download failed with error {response.status_code}")
 
 
+async def download_with_ydl(url, update, context):
+    with YoutubeDL(ydl_opts) as ydl:
+        # download
+        # ydl.download([url])
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Getting information of the link ... 👨🏻‍💻")
+        info_dict = ydl.extract_info(url, download=False)
+
+        is_playlist = info_dict.get("_type") == "playlist"
+        if is_playlist:
+            downloadin_text = f"Downloading {info_dict.get('title')} ({len(info_dict.get('entries'))} items) ... 😇"
+        else:
+            downloadin_text = f"Downloading {info_dict.get('title')} ... 😇"
+
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=downloadin_text)
+
+        try:
+            ydl.download([url])
+
+            if is_playlist:
+                for item in info_dict.get('entries'):
+                    buttons = [InlineKeyboardButton("👍", callback_data="like"),
+                               InlineKeyboardButton("👎", callback_data="dislike")]
+
+                    reply_markup = InlineKeyboardMarkup(
+                        build_menu(buttons, n_cols=2))
+
+                    filename = "mp3s/" + item.get("title") + ".mp3"
+                    thumbnail_filename = "thumbnails/" + \
+                        item.get("title") + ".jpg"
+                    thumbnail_url = item.get("thumbnail")
+                    download(thumbnail_url, thumbnail_filename)
+                    with open(filename, "rb") as f:
+                        thumbnail_file = open(thumbnail_filename, "rb")
+                        text = "Here is your mp3 😌🎧"
+                        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=thumbnail_file)
+                        await context.bot.send_audio(chat_id=update.effective_chat.id, audio=f, caption=text, performer=item.get("uploader"), title=item.get("title"), thumbnail=thumbnail_file, reply_markup=reply_markup)
+            else:
+                buttons = [InlineKeyboardButton("👍", callback_data="like"),
+                           InlineKeyboardButton("👎", callback_data="dislike")]
+
+                reply_markup = InlineKeyboardMarkup(
+                    build_menu(buttons, n_cols=2))
+
+                filename = "mp3s/" + info_dict.get("title") + ".mp3"
+                thumbnail_filename = "thumbnails/" + \
+                    info_dict.get("title") + ".jpg"
+                thumbnail_url = info_dict.get("thumbnail")
+                download(thumbnail_url, thumbnail_filename)
+                with open(filename, "rb") as f:
+                    thumbnail_file = open(thumbnail_filename, "rb")
+                    text = "Here is your mp3 😌🎧"
+                    await context.bot.send_photo(chat_id=update.effective_chat.id, photo=thumbnail_file)
+                    await context.bot.send_audio(chat_id=update.effective_chat.id, audio=f, caption=text, performer=info_dict.get("uploader"), title=info_dict.get("title"), thumbnail=thumbnail_file, reply_markup=reply_markup)
+        except utils.DownloadError:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Unfortunately the link is not downloadable ... 😢")
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     buttons = [[KeyboardButton("/playlists Top Playlists 😎")]]
     # buttons = [[MenuButton("commands")]]
@@ -129,6 +187,31 @@ async def playlists(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     build_menu(button_list, n_cols=1))
                 await context.bot.send_message(chat_id=update.effective_chat.id, text="Top playlists ...", reply_markup=reply_markup)
     # ch = int(input("Choose one playlist: "))
+
+ydl_opts = {
+    'format': 'bestaudio/best',
+    'outtmpl': 'mp3s/%(title)s.%(ext)s',
+    # 'writethumbnail': True,
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }]
+}
+
+
+@send_typing_action
+async def youtube(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    yt_url = context.args[0]
+
+    await download_with_ydl(yt_url, update, context)
+
+
+@send_typing_action
+async def soundcloud(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    sc_url = context.args[0]
+
+    await download_with_ydl(sc_url, update, context)
 
 
 async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -380,10 +463,14 @@ if __name__ == '__main__':
 
     start_handler = CommandHandler('start', start)
     playlists_handler = CommandHandler('playlists', playlists)
+    youtube_handler = CommandHandler('youtube', youtube)
+    soundcloud_handler = CommandHandler('soundcloud', soundcloud)
 
     application.add_handler(search_handler)
     application.add_handler(start_handler)
     application.add_handler(playlists_handler)
+    application.add_handler(youtube_handler)
+    application.add_handler(soundcloud_handler)
 
     application.add_handler(CallbackQueryHandler(handle_query))
 
