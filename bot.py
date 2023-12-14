@@ -169,8 +169,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_buttons = await context.bot.get_chat_menu_button(chat_id=update.effective_chat.id)
     logger.info(chat_buttons)
     # await context.bot.set_chat_menu_button(chat_id=update.effective_chat.id, menu_button=MenuButton("commands"))
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello "+name+".\nI'm a bot created by @NabidaM for downloading musics! start searching your music by sending me the artist name or the song name or the album name. You can also use command /playlists to get the Top playlists.", reply_markup=reply_markup)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Hello "+name+".\nI'm a bot created by @fxckedupabcde for downloading musics! start searching your music by sending me the artist name or the song name or the album name. You can also use command /playlists to get the Top playlists. Send /help if you want help.", reply_markup=reply_markup)
 
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = """Here is the list of things you can do with this bot.
+1- You can search any song, album, artist or playlist by sending a part of the title or full title of them, for example if I want to listen to Irane Man performed by Sogand, There's multiple ways to achieve that song.
+A) send `irane man` to bot and select the `mp3s` then download the song.
+B) send `sogand` to bot and select `artists` or `mp3s` then download the song.
+Also you can explose every artists mp3s, albums, and music videos by searching their name.
+2- You can use command /playlists to get the top playlists on RadioJavan, and download their songs.
+3- You can use command /youtube to download mp3 of a video on youtube. You should pass the link of the video after command, like this: /youtube https://www.youtube.com/watch?v=cDNDVtoJhik&ab_channel=MohsenYeganeh
+This command also support youtube playlists. It will download all of the tracks of the playlist.
+4- You can use command /soundcloud to download songs on the soundcloud. You should pass the link of the song, like this: /soundcloud https://soundcloud.com/mrkitty_sc/after-dark
+This command also supports soundcloud sets (playlists). It will download all of the tracks of the set.
+
+Bot will be updated as usual as possible, and you can share your ideas and opininons with me. Feel free to contact with me @fxckedupabcde 👨🏻‍💻
+"""
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 @send_typing_action
 async def playlists(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -416,11 +431,6 @@ This may take a long time, be patient 😇"""
     await query.answer()
 
 
-async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Display a help message"""
-    await update.message.reply_text("Use /trends to test this bot.")
-
-
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text
     print(f"[INFO] search {query=}")
@@ -463,12 +473,14 @@ if __name__ == '__main__':
     search_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), search)
 
     start_handler = CommandHandler('start', start)
+    help_handler = CommandHandler('help', help)
     playlists_handler = CommandHandler('playlists', playlists)
     youtube_handler = CommandHandler('youtube', youtube)
     soundcloud_handler = CommandHandler('soundcloud', soundcloud)
 
     application.add_handler(search_handler)
     application.add_handler(start_handler)
+    application.add_handler(help_handler)
     application.add_handler(playlists_handler)
     application.add_handler(youtube_handler)
     application.add_handler(soundcloud_handler)
